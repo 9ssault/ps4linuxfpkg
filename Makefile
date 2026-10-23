@@ -16,7 +16,7 @@ LIBS        := -lc -lkernel -lSceUserService -lSceVideoOut -lSceAudioOut -lScePa
 
 BUILD       := build
 OUT         := out
-PACKAGE     := $(OUT)/ps4-linux-installer.fpkg
+PACKAGE     := $(OUT)/ps4-linux-installer.pkg
 
 SRCS        := $(wildcard src/*.c)
 HDRS        := $(wildcard src/*.h)

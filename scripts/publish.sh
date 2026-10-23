@@ -17,12 +17,12 @@ fi
 
 cd "$(dirname "$0")/.."
 
-if [ ! -f dist/ps4-linux-installer.fpkg ]; then
+if [ ! -f dist/ps4-linux-installer.pkg ]; then
   echo "building the package first"
   ./scripts/build.sh
   mkdir -p dist
-  cp out/ps4-linux-installer.fpkg dist/
-  ( cd dist && sha256sum ps4-linux-installer.fpkg > SHA256SUMS.txt )
+  cp out/ps4-linux-installer.pkg dist/
+  ( cd dist && sha256sum ps4-linux-installer.pkg > SHA256SUMS.txt )
 fi
 
 if ! git remote get-url origin >/dev/null 2>&1; then
@@ -33,10 +33,10 @@ else
 fi
 
 if gh release view "$TAG" >/dev/null 2>&1; then
-  gh release upload "$TAG" dist/ps4-linux-installer.fpkg dist/SHA256SUMS.txt --clobber
+  gh release upload "$TAG" dist/ps4-linux-installer.pkg dist/SHA256SUMS.txt --clobber
 else
   gh release create "$TAG" \
-    dist/ps4-linux-installer.fpkg dist/SHA256SUMS.txt \
+    dist/ps4-linux-installer.pkg dist/SHA256SUMS.txt \
     --title "$TAG" --notes-file docs/RELEASE_NOTES.md
 fi
 

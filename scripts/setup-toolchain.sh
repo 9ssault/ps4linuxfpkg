@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs everything needed to build the .fpkg into $HOME/opt.
+# Installs everything needed to build the .pkg into $HOME/opt.
 # Safe to re-run; each step is skipped when the artifact already exists.
 set -euo pipefail
 

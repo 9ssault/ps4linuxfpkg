@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds assets/initramfs.cpio.gz: the stock initramfs-ps4 plus the unattended
-# installer. The result is bundled in the .fpkg so no download is needed.
+# installer. The result is bundled in the .pkg so no download is needed.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

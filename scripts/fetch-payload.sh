@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetches the ps4-linux-loader payload that gets bundled into the .fpkg.
+# Fetches the ps4-linux-loader payload that gets bundled into the .pkg.
 # The payload is not vendored in this repo (upstream has no license file), so
 # it is pulled from the official release at build time.
 set -euo pipefail

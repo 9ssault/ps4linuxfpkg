@@ -2,7 +2,7 @@
 
 # PS4 Linux Installer
 
-A single fake package (`.fpkg`) that sets up Linux on a jailbroken PS4 with the
+A single fake package (`.pkg`) that sets up Linux on a jailbroken PS4 with the
 same steps as [DionKill's tutorial](https://dionkill.github.io/ps4-linux-tutorial/),
 but without copying files over FTP or typing install commands.
 
@@ -56,7 +56,7 @@ manual installs.
 
 ## Install the package
 
-1. Copy `out/ps4-linux-installer.fpkg` to a USB drive.
+1. Copy `out/ps4-linux-installer.pkg` to a USB drive.
 2. GoldHEN → Debug Settings → Package Installer → source `usb[ usb:/ ]`.
 3. Install **PS4 Linux Installer**, then launch it from the home screen.
 
@@ -125,7 +125,7 @@ branding/         SVG logo and banner
 
 ```bash
 scripts/setup-toolchain.sh    # OpenOrbis v0.5.4 + LLVM 18 + .NET deps
-scripts/build.sh              # -> out/ps4-linux-installer.fpkg
+scripts/build.sh              # -> out/ps4-linux-installer.pkg
 ```
 
 `build.sh` also fetches the loader payload and builds the patched initramfs on
@@ -160,7 +160,7 @@ Checked against a live console (GoldHEN FTP on `192.168.18.16:2121`):
 - The FTP fallback path works where the sandbox would block a write: `MKD` on
   `/data/payloads`, `STOR` of the 305 KB loader and of the 16 MB package, and
   `DELE` all return `226`, and every file read back byte-identical (SHA-256).
-- The package uploads to a USB drive at `usb0:/ps4-linux-installer.fpkg` at
+- The package uploads to a USB drive at `usb0:/ps4-linux-installer.pkg` at
   roughly 2-3 MB/s and matches the release asset exactly.
 
 **Still needs the console, in person:** BinLoader on `9090` must be switched on
@@ -180,7 +180,7 @@ Safety choices worth knowing:
 
 ## Releasing
 
-`out/ps4-linux-installer.fpkg` is the release asset. After `gh auth login`:
+`out/ps4-linux-installer.pkg` is the release asset. After `gh auth login`:
 
 ```bash
 scripts/publish.sh <owner>/ps4linuxfpkg v1.0.0
@@ -190,9 +190,9 @@ The script creates or updates the remote, pushes the branch, and attaches the
 package plus `SHA256SUMS.txt` to a release. To do it by hand:
 
 ```bash
-mkdir -p dist && cp out/ps4-linux-installer.fpkg dist/
-(cd dist && sha256sum ps4-linux-installer.fpkg > SHA256SUMS.txt)
-gh release create v1.0.0 dist/ps4-linux-installer.fpkg dist/SHA256SUMS.txt \
+mkdir -p dist && cp out/ps4-linux-installer.pkg dist/
+(cd dist && sha256sum ps4-linux-installer.pkg > SHA256SUMS.txt)
+gh release create v1.0.0 dist/ps4-linux-installer.pkg dist/SHA256SUMS.txt \
   --title "v1.0.0" --notes-file docs/RELEASE_NOTES.md
 ```
 

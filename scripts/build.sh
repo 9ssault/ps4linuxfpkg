@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds out/ps4-linux-installer.fpkg. Run scripts/setup-toolchain.sh first.
+# Builds out/ps4-linux-installer.pkg. Run scripts/setup-toolchain.sh first.
 set -euo pipefail
 
 OPT="${OPT:-$HOME/opt}"

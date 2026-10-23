@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Verifies a built .fpkg: extracts it again with PkgTool and checks every file
+# Verifies a built .pkg: extracts it again with PkgTool and checks every file
 # inside against the source tree, plus the param.sfo fields and the icon.
 #
-#   scripts/verify-package.sh out/ps4-linux-installer.fpkg
+#   scripts/verify-package.sh out/ps4-linux-installer.pkg
 set -euo pipefail
 
-PKG="${1:-out/ps4-linux-installer.fpkg}"
+PKG="${1:-out/ps4-linux-installer.pkg}"
 
 cd "$(dirname "$0")/.."
 
