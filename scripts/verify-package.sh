@@ -2,10 +2,10 @@
 # Verifies a built .fpkg: extracts it again with PkgTool and checks every file
 # inside against the source tree, plus the param.sfo fields and the icon.
 #
-#   scripts/verify-package.sh out/ps4-linux-installer.pkg
+#   scripts/verify-package.sh out/ps4-linux-installer.fpkg
 set -euo pipefail
 
-PKG="${1:-out/ps4-linux-installer.pkg}"
+PKG="${1:-out/ps4-linux-installer.fpkg}"
 
 cd "$(dirname "$0")/.."
 

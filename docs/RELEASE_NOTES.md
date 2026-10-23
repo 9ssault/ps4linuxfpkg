@@ -33,7 +33,7 @@ available as a USB import because it is only hosted on Mega/Mediafire.
 
 ## Install
 
-1. Put `ps4-linux-installer.pkg` on a USB drive.
+1. Put `ps4-linux-installer.fpkg` on a USB drive.
 2. GoldHEN → Debug Settings → Package Installer → source `usb[ usb:/ ]`.
 3. Install and launch **PS4 Linux Installer**.
 

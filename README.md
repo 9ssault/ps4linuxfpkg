@@ -55,7 +55,7 @@ manual installs.
 
 ## Install the package
 
-1. Copy `out/ps4-linux-installer.pkg` to a USB drive.
+1. Copy `out/ps4-linux-installer.fpkg` to a USB drive.
 2. GoldHEN → Debug Settings → Package Installer → source `usb[ usb:/ ]`.
 3. Install **PS4 Linux Installer**, then launch it from the home screen.
 
@@ -124,7 +124,7 @@ branding/         SVG logo and banner
 
 ```bash
 scripts/setup-toolchain.sh    # OpenOrbis v0.5.4 + LLVM 18 + .NET deps
-scripts/build.sh              # -> out/ps4-linux-installer.pkg
+scripts/build.sh              # -> out/ps4-linux-installer.fpkg
 ```
 
 `build.sh` also fetches the loader payload and builds the patched initramfs on
@@ -170,7 +170,7 @@ Safety choices worth knowing:
 
 ## Releasing
 
-`out/ps4-linux-installer.pkg` is the release asset. After `gh auth login`:
+`out/ps4-linux-installer.fpkg` is the release asset. After `gh auth login`:
 
 ```bash
 scripts/publish.sh <owner>/ps4linuxfpkg v1.0.0
@@ -180,9 +180,9 @@ The script creates or updates the remote, pushes the branch, and attaches the
 package plus `SHA256SUMS.txt` to a release. To do it by hand:
 
 ```bash
-mkdir -p dist && cp out/ps4-linux-installer.pkg dist/
-(cd dist && sha256sum ps4-linux-installer.pkg > SHA256SUMS.txt)
-gh release create v1.0.0 dist/ps4-linux-installer.pkg dist/SHA256SUMS.txt \
+mkdir -p dist && cp out/ps4-linux-installer.fpkg dist/
+(cd dist && sha256sum ps4-linux-installer.fpkg > SHA256SUMS.txt)
+gh release create v1.0.0 dist/ps4-linux-installer.fpkg dist/SHA256SUMS.txt \
   --title "v1.0.0" --notes-file docs/RELEASE_NOTES.md
 ```
 

@@ -32,20 +32,20 @@ jobs:
       - name: Verify package
         run: |
           ./tests/test_job_conf.sh
-          ./scripts/verify-package.sh out/ps4-linux-installer.pkg
+          ./scripts/verify-package.sh out/ps4-linux-installer.fpkg
 
       - name: Checksum
         run: |
           mkdir -p dist
-          cp out/ps4-linux-installer.pkg dist/
-          ( cd dist && sha256sum ps4-linux-installer.pkg > SHA256SUMS.txt )
+          cp out/ps4-linux-installer.fpkg dist/
+          ( cd dist && sha256sum ps4-linux-installer.fpkg > SHA256SUMS.txt )
           cat dist/SHA256SUMS.txt
 
       - uses: actions/upload-artifact@v4
         with:
           name: ps4-linux-installer
           path: |
-            dist/ps4-linux-installer.pkg
+            dist/ps4-linux-installer.fpkg
             dist/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 30
