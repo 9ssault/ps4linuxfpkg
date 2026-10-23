@@ -12,7 +12,7 @@ TOOLCHAIN   := $(OO_PS4_TOOLCHAIN)
 BIN         := $(TOOLCHAIN)/bin/linux
 
 LIBS        := -lc -lkernel -lSceUserService -lSceVideoOut -lSceAudioOut -lScePad \
-               -lSceSysmodule -lSceFreeType -lSceNet -lSceHttp -lSceSsl -lSDL2
+               -lSceSysmodule -lSceSysUtil -lSceFreeType -lSceNet -lSceHttp -lSceSsl -lSDL2
 
 BUILD       := build
 OUT         := out

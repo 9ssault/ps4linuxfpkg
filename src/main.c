@@ -5,6 +5,7 @@
 #include "ui.h"
 
 #include <orbis/libkernel.h>
+#include <orbis/SysUtil.h>
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -140,6 +141,41 @@ static void log_line(const char *fmt, ...)
     va_end(args);
 }
 
+/* --------------------------------------------------------- notifications --- */
+
+/* A system notification survives the app losing focus, so every step lands on
+ * screen even if the player has switched to another tile. 0x10000000 is the
+ * system user id that GoldHEN's BinLoader also reports through. */
+#define NOTIFY_USER 0x10000000
+
+static void notify(const char *fmt, ...)
+{
+    char text[256];
+    va_list args;
+    char *p;
+
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+
+    /* System notifications are one line; anything after a break is lost. */
+    for (p = text; *p; p++) {
+        if (*p == '\n') {
+            *p = '\0';
+            break;
+        }
+    }
+
+    if (text[0])
+        sceSysUtilSendSystemNotificationWithText(NOTIFY_USER, text);
+}
+
+static void fail_screen(void)
+{
+    notify("Failed: %s", g_error);
+    g_screen = SCR_ERROR;
+}
+
 static unsigned int make_job_id(void)
 {
     static unsigned int counter;
@@ -170,6 +206,8 @@ static int sink_open(Sink *sink, const char *path)
 
     /* Sandbox refused the write; GoldHEN's FTP server runs outside it. */
     sink->ftp = ftp_begin(path);
+
+    notify(sink->ftp ? "Sandbox refused %s - using GoldHEN FTP" : "Cannot write %s", path);
 
     return sink->ftp != NULL;
 }
@@ -241,6 +279,7 @@ static int put_file(const char *src, const char *dst, const char *label)
         g_work_done = 0;
         g_work_total = (unsigned long long)fs_size(src);
         render_work_now();
+        notify("%s", label);
     }
 
     buffer = (char *)malloc(256 * 1024);
@@ -249,7 +288,6 @@ static int put_file(const char *src, const char *dst, const char *label)
         sink_close(&sink, 0);
         return 0;
     }
-
     while ((got = fread(buffer, 1, 256 * 1024, in)) > 0) {
         if (!sink_write(&sink, buffer, got)) {
             ok = 0;
@@ -265,7 +303,12 @@ static int put_file(const char *src, const char *dst, const char *label)
     free(buffer);
     fclose(in);
 
-    return sink_close(&sink, ok);
+    ok = sink_close(&sink, ok);
+
+    if (label)
+        notify(ok ? "Done: %s" : "Failed: %s", label);
+
+    return ok;
 }
 
 /* Creating a directory can fail inside the app sandbox; GoldHEN's FTP server
@@ -793,6 +836,7 @@ static int download_to(const char *url, const char *path, const char *label)
     g_work_done = 0;
     g_work_total = 0;
     render_work_now();
+    notify("%s", label);
 
     if (!sink_open(&sink, path)) {
         snprintf(g_error, sizeof(g_error),
@@ -805,9 +849,11 @@ static int download_to(const char *url, const char *path, const char *label)
 
     if (!ok) {
         snprintf(g_error, sizeof(g_error), "%s: %s", label, err);
+        notify("Failed: %s", label);
         return 0;
     }
 
+    notify("Done: %s", label);
     return 1;
 }
 
@@ -909,10 +955,18 @@ static int install_payload_files(void)
 
 static int try_inject(void)
 {
-    if (!g_have_binloader)
-        return 0;
+    int ok;
 
-    return net_send_file(g_bin_host, BINLOADER_PORT, PAYLOAD_LOCAL_ELF);
+    if (!g_have_binloader) {
+        notify("BinLoader 9090 is down - use GoldHEN > Utilities > PayLoader");
+        return 0;
+    }
+
+    notify("Sending the boot payload to %s:9090", g_bin_host);
+    ok = net_send_file(g_bin_host, BINLOADER_PORT, PAYLOAD_LOCAL_ELF);
+
+    notify(ok ? "Boot payload sent to %s:9090" : "Could not reach %s:9090", g_bin_host);
+    return ok;
 }
 
 static int run_install(void)
@@ -934,6 +988,8 @@ static int run_install(void)
         snprintf(bootdir, sizeof(bootdir), "%s", t->path);
         mode = "ext";
     }
+
+    notify("Installing Linux to %s", t->label);
 
     if (!download_to(KERNELS[g_kernel_sel].url,
                      (fs_join(path, sizeof(path), bootdir, "bzImage"), path),
@@ -959,6 +1015,8 @@ static int run_install(void)
         return 0;
     }
 
+    notify("Boot files written to %s", bootdir);
+
     if (t->internal)
         snprintf(dst, sizeof(dst), "%s", INTERNAL_DISTRO);
     else
@@ -980,6 +1038,8 @@ static int run_install(void)
     }
 
     if (g_opts.auto_install) {
+        notify("Queueing the unattended install");
+
         if (!write_job(bootdir, mode)) {
             snprintf(g_error, sizeof(g_error),
                      "Could not queue the automatic install in %s. Turn it off in Options to install manually.",
@@ -1031,6 +1091,8 @@ static int run_boot(void)
     int injected;
 
     snprintf(bootdir, sizeof(bootdir), "%s", t->internal ? INTERNAL_BOOTDIR : t->path);
+
+    notify("Booting Linux from %s", bootdir);
 
     {
         char kernel[512];
@@ -1227,7 +1289,11 @@ static void handle_input(UiInput in)
             if (g_boot_mode) {
                 g_screen = SCR_WORK;
                 render_work_now();
-                g_screen = run_boot() ? SCR_DONE : SCR_ERROR;
+
+                if (run_boot())
+                    g_screen = SCR_DONE;
+                else
+                    fail_screen();
             } else {
                 g_screen = SCR_KERNEL;
             }
@@ -1274,13 +1340,17 @@ static void handle_input(UiInput in)
                          "Free some space, or pick another drive.",
                          t->label,
                          (need - (unsigned long long)free_bytes) / (1024ULL * 1024ULL));
-                g_screen = SCR_ERROR;
+                fail_screen();
                 break;
             }
 
             g_screen = SCR_WORK;
             render_work_now();
-            g_screen = run_install() ? SCR_DONE : SCR_ERROR;
+
+            if (run_install())
+                g_screen = SCR_DONE;
+            else
+                fail_screen();
         }
         break;
 
@@ -1334,6 +1404,12 @@ int main(void)
 
     resolve_servers();
     discover_targets();
+
+    notify("PS4 Linux Installer ready - %d drive(s), storage %s, FTP %s, BinLoader %s",
+           g_target_count,
+           (g_have_data_write && g_have_user_write) ? "direct" : "via FTP",
+           g_have_ftp ? g_ftp_host : "down",
+           g_have_binloader ? g_bin_host : "down");
 
     for (;;) {
         render();

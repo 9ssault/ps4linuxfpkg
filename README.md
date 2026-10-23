@@ -40,6 +40,7 @@ manual installs.
 | Manual mode | Optional; drops to the normal rescue shell if you prefer |
 | More options | Boot VRAM, internal filesystem, image size, boot arguments |
 | PS4-blue UI | 1080p, controller and keyboard, Inter typeface |
+| Step notifications | Every download, write, payload send and error also lands in the PS4 notification panel |
 | Server discovery | Probes `192.168.18.16` and `127.0.0.1` for FTP 2121 / BinLoader 9090 |
 | FTP fallback | If the app sandbox blocks `/data`, writes go through GoldHEN's FTP |
 | Bundled payload | The loader ships inside the package, no extra download |

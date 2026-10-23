@@ -1,4 +1,4 @@
-# PS4 Linux Installer v1.0.0
+# PS4 Linux Installer v1.0.1
 
 One fake package that performs the whole PS4 Linux setup from
 [dionkill.github.io/ps4-linux-tutorial](https://dionkill.github.io/ps4-linux-tutorial/).
@@ -19,6 +19,9 @@ One fake package that performs the whole PS4 Linux setup from
 - **FTP fallback.** If the app sandbox blocks `/data`, files are uploaded
   through GoldHEN's FTP server instead.
 - **Bundled payload.** `ps4-linux-loader` v25.1 ships in the package.
+- **Step notifications.** Startup, every download and write, each sandbox
+  fallback, the payload send and every failure also post to the PS4
+  notification panel, so progress stays visible even if the app loses focus.
 
 ## Distros
 
