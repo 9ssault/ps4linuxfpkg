@@ -154,10 +154,19 @@ Checked in the build environment:
   and executable, and `sh -n` accepts the auto-install script.
 - The job file the app writes matches the keys the initramfs script parses.
 
-**Not verified, because it needs a console:** sandbox write access, BinLoader
-on loopback versus the LAN address, HTTPS redirects through `libSceHttp`,
-download throughput, and the unattended installer actually partitioning a real
-drive and booting. Treat the first hardware run as a test.
+Checked against a live console (GoldHEN FTP on `192.168.18.16:2121`):
+
+- The FTP fallback path works where the sandbox would block a write: `MKD` on
+  `/data/payloads`, `STOR` of the 305 KB loader and of the 16 MB package, and
+  `DELE` all return `226`, and every file read back byte-identical (SHA-256).
+- The package uploads to a USB drive at `usb0:/ps4-linux-installer.fpkg` at
+  roughly 2-3 MB/s and matches the release asset exactly.
+
+**Still needs the console, in person:** BinLoader on `9090` must be switched on
+in GoldHEN's server settings, launch and UI behaviour, HTTPS redirects through
+`libSceHttp`, download throughput for the distro images, the sandboxed `/data`
+and `/user` probes, and the unattended installer actually partitioning a real
+drive and booting.
 
 Safety choices worth knowing:
 
