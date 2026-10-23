@@ -210,8 +210,18 @@ install_internal() {
 
 	mkdir -p /ps4hdd/app
 
-	if ! distro="$(ps4_find_distro "${boot}")"; then
-		fail "no distro archive in ${boot}"
+	# The installer app cannot write to ${boot} while the console is running
+	# (it is mounted read-only there), so the archive waits on the data
+	# partition next to the kernel. Prefer that, keep the old spot as fallback.
+	distro=''
+	for d in /ps4hdd/linux /ps4hdd/linux/boot "${boot}"; do
+		[ -d "${d}" ] || continue
+		distro="$(ps4_find_distro "${d}")" || distro=''
+		[ -n "${distro}" ] && break
+	done
+
+	if [ -z "${distro}" ]; then
+		fail "no distro archive on the internal drive (looked in /ps4hdd/linux and ${boot})"
 		return 1
 	fi
 

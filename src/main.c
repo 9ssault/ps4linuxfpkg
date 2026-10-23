@@ -7,6 +7,7 @@
 #include <orbis/libkernel.h>
 #include <orbis/SysUtil.h>
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +26,10 @@
 #define INITRAMFS_LOCAL   "/app0/assets/initramfs.cpio.gz"
 
 #define INTERNAL_BOOTDIR "/data/linux/boot"
-#define INTERNAL_DISTRO  "/user/system/boot/distro.tar.xz"
+/* The PS4 mounts /user/system read-only while the console is running (writes
+ * come back 550 even over GoldHEN's FTP), so the internal image has to wait
+ * next to the boot files on /data instead. The initramfs looks there. */
+#define INTERNAL_DISTRO  "/data/linux/distro.tar.xz"
 #define INTERNAL_SYSDIR  "/user/system/boot"
 
 #define INSTALL_VRAM_MB 1024
@@ -273,6 +277,7 @@ typedef struct {
     FtpSink *ftp;
     char     final_path[512];
     char     temp_path[512];
+    unsigned long long written;
 } Sink;
 
 static int sink_open(Sink *sink, const char *path)
@@ -303,10 +308,27 @@ static int sink_write(void *ctx, const void *data, size_t len)
 {
     Sink *sink = (Sink *)ctx;
 
-    if (sink->file)
-        return fwrite(data, 1, len, sink->file) == len;
+    if (sink->file) {
+        size_t n = fwrite(data, 1, len, sink->file);
 
-    return ftp_write(sink->ftp, data, len);
+        if (n != len) {
+            /* ENOSPC and a sandbox refusal both end here; keep the reason and
+             * the byte count so a failed 2 GB download is diagnosable. */
+            log_persist("write to %s stopped after %llu bytes, errno %d",
+                        sink->final_path, sink->written + (unsigned long long)n, errno);
+            return 0;
+        }
+
+        sink->written += n;
+        return 1;
+    }
+
+    if (ftp_write(sink->ftp, data, len)) {
+        sink->written += len;
+        return 1;
+    }
+
+    return 0;
 }
 
 static int sink_close(Sink *sink, int ok)
@@ -646,13 +668,11 @@ static long long target_free(const Target *t)
     if (!t->internal)
         return fs_free(t->path);
 
-    if (fs_free(INTERNAL_SYSDIR) > 0)
-        return fs_free(INTERNAL_SYSDIR);
+    /* Internal installs now live entirely on the data partition. */
+    if (fs_free("/data") > 0)
+        return fs_free("/data");
 
-    if (fs_free("/user/system") > 0)
-        return fs_free("/user/system");
-
-    return fs_free("/user");
+    return fs_free(INTERNAL_SYSDIR);
 }
 
 static void render_confirm(void)
@@ -928,7 +948,7 @@ static int progress_cb(void *ctx, unsigned long long done, unsigned long long to
 
     g_dirty = 1;
 
-    if (SDL_GetTicks() - g_work_last_render > 120)
+    if (SDL_GetTicks() - g_work_last_render > 80)
         render_work_now();
 
     return 1;
@@ -1092,7 +1112,6 @@ static int run_install(void)
     if (t->internal) {
         snprintf(bootdir, sizeof(bootdir), "%s", INTERNAL_BOOTDIR);
         ensure_dir(INTERNAL_BOOTDIR);
-        ensure_dir(INTERNAL_SYSDIR);
         mode = "internal";
     } else {
         snprintf(bootdir, sizeof(bootdir), "%s", t->path);

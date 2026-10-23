@@ -1,4 +1,4 @@
-# PS4 Linux Installer v1.0.3
+# PS4 Linux Installer v1.0.4
 
 One fake package that performs the whole PS4 Linux setup from
 [dionkill.github.io/ps4-linux-tutorial](https://dionkill.github.io/ps4-linux-tutorial/).
@@ -22,6 +22,20 @@ One fake package that performs the whole PS4 Linux setup from
 - **Step notifications.** Startup, every download and write, each sandbox
   fallback, the payload send and every failure also post to the PS4
   notification panel, so progress stays visible even if the app loses focus.
+
+## Fixed in v1.0.4
+
+- **Internal installs were writing to a read-only mount.** The distro archive
+  went to `/user/system/boot`, which the console mounts read-only while it is
+  running (even GoldHEN's FTP gets `550` there), so the 2 GB download died a
+  fraction of a second in. It now goes to `/data/linux/distro.tar.xz` next to
+  the boot files, and the unattended installer looks there first.
+- **Write failures say why.** A short write now logs the destination, the byte
+  count and `errno`, so a full or refused drive is obvious from
+  `/data/ps4li.log`.
+- **Progress redraw.** The work screen refreshed every 120 ms; it now refreshes
+  every 80 ms. Idle screens only redraw on input, which is why a frame counter
+  shows a low number while nothing is happening.
 
 ## Fixed in v1.0.3
 
