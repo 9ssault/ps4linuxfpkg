@@ -1164,8 +1164,13 @@ static int run_install(void)
         fs_join(dst, sizeof(dst), bootdir, "distro.tar.xz");
 
     if (d->url) {
-        if (!download_to(d->url, dst, "the distro image (this is the big one)"))
+        /* Downloads land on a .part file and are renamed only when complete,
+         * so an existing archive is a finished one - do not pull 2 GB again. */
+        if (fs_exists(dst)) {
+            notify("Reusing the distro already in %s", dst);
+        } else if (!download_to(d->url, dst, "the distro image (this is the big one)")) {
             return 0;
+        }
     } else if (!import_manual_distro(find_source_usb(), dst)) {
         return 0;
     }

@@ -84,11 +84,15 @@ find_job() {
 	done
 
 	ps4hdd_open >/dev/null 2>&1 || true
-	if [ -f /ps4hdd/linux/boot/ps4li.conf ]; then
-		conf=/ps4hdd/linux/boot/ps4li.conf
-		source=internal
-		return 0
-	fi
+	# The console's /data lands on the drive's data/ directory once the
+	# initramfs mounts it, so the app's /data/linux/boot shows up here.
+	for d in /ps4hdd/data/linux/boot /ps4hdd/linux/boot; do
+		if [ -f "${d}/ps4li.conf" ]; then
+			conf="${d}/ps4li.conf"
+			source=internal
+			return 0
+		fi
+	done
 
 	return 1
 }
@@ -214,7 +218,7 @@ install_internal() {
 	# (it is mounted read-only there), so the archive waits on the data
 	# partition next to the kernel. Prefer that, keep the old spot as fallback.
 	distro=''
-	for d in /ps4hdd/linux /ps4hdd/linux/boot "${boot}"; do
+	for d in /ps4hdd/data/linux /ps4hdd/data/linux/boot /ps4hdd/linux /ps4hdd/linux/boot "${boot}"; do
 		[ -d "${d}" ] || continue
 		distro="$(ps4_find_distro "${d}")" || distro=''
 		[ -n "${distro}" ] && break
@@ -224,7 +228,7 @@ install_internal() {
 	# initramfs builds, so fall back to looking for the archive itself.
 	if [ -z "${distro}" ]; then
 		say "no archive in the usual places, searching the internal drive"
-		distro="$(find /ps4hdd -maxdepth 4 \( -name '*.tar.xz' -o -name '*.tar.gz' -o -name '*.tar.zst' \) 2>/dev/null | head -n 1)"
+		distro="$(find /ps4hdd -maxdepth 5 \( -name '*.tar.xz' -o -name '*.tar.gz' -o -name '*.tar.zst' \) 2>/dev/null | head -n 1)"
 	fi
 
 	if [ -z "${distro}" ]; then
