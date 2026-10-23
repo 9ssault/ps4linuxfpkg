@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="PS4 Linux Installer">
+  <defs>
+    <linearGradient id="ps4blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#001A3A"/>
+      <stop offset="1" stop-color="#00418F"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2D8CEB" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#2D8CEB" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="rounded">
+      <rect x="0" y="0" width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#rounded)">
+    <rect width="512" height="512" fill="url(#ps4blue)"/>
+    <rect width="512" height="220" fill="url(#gloss)"/>
+
+    <!-- penguin -->
+    <ellipse cx="256" cy="266" rx="146" ry="186" fill="#F2F7FF"/>
+    <ellipse cx="111" cy="286" rx="24" ry="108" fill="#D6E8FF"/>
+    <ellipse cx="401" cy="286" rx="24" ry="108" fill="#D6E8FF"/>
+    <ellipse cx="256" cy="330" rx="92" ry="122" fill="#0070D1"/>
+
+    <ellipse cx="212" cy="174" rx="29" ry="31" fill="#F2F7FF"/>
+    <ellipse cx="300" cy="174" rx="29" ry="31" fill="#F2F7FF"/>
+    <ellipse cx="216" cy="178" rx="11" ry="13" fill="#081A30"/>
+    <ellipse cx="296" cy="178" rx="11" ry="13" fill="#081A30"/>
+
+    <path d="M228 230 L284 230 L256 266 Z" fill="#FF9F1C"/>
+
+    <ellipse cx="204" cy="434" rx="46" ry="20" fill="#FF9F1C"/>
+    <ellipse cx="308" cy="434" rx="46" ry="20" fill="#FF9F1C"/>
+  </g>
+
+  <rect x="1" y="1" width="510" height="510" rx="95" ry="95" fill="none" stroke="#2D8CEB" stroke-opacity="0.5" stroke-width="2"/>
+</svg>

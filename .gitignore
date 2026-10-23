@@ -1,0 +1,15 @@
+build/
+out/
+dist/
+.cache/
+eboot.bin
+pkg.gp4
+sce_sys/param.sfo
+
+# Fetched by scripts/fetch-payload.sh (upstream has no license file, so the
+# payload is not vendored here).
+ps4-linux-loader.elf
+ps4-linux-loader.bin
+
+# Built by scripts/build-initramfs.sh from the upstream image.
+assets/initramfs.cpio.gz

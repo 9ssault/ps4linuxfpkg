@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="PS4 Linux Installer">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00152F"/>
+      <stop offset="0.55" stop-color="#003791"/>
+      <stop offset="1" stop-color="#0070D1"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2D8CEB" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#2D8CEB" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="frame">
+      <rect width="1280" height="320" rx="28" ry="28"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="320" fill="url(#bg)"/>
+    <circle cx="1180" cy="40" r="220" fill="url(#glow)"/>
+
+    <!-- glyph -->
+    <g transform="translate(72 58) scale(0.4)">
+      <ellipse cx="256" cy="266" rx="146" ry="186" fill="#F2F7FF"/>
+      <ellipse cx="111" cy="286" rx="24" ry="108" fill="#D6E8FF"/>
+      <ellipse cx="401" cy="286" rx="24" ry="108" fill="#D6E8FF"/>
+      <ellipse cx="256" cy="330" rx="92" ry="122" fill="#0070D1"/>
+      <ellipse cx="212" cy="174" rx="29" ry="31" fill="#F2F7FF"/>
+      <ellipse cx="300" cy="174" rx="29" ry="31" fill="#F2F7FF"/>
+      <ellipse cx="216" cy="178" rx="11" ry="13" fill="#081A30"/>
+      <ellipse cx="296" cy="178" rx="11" ry="13" fill="#081A30"/>
+      <path d="M228 230 L284 230 L256 266 Z" fill="#FF9F1C"/>
+      <ellipse cx="204" cy="434" rx="46" ry="20" fill="#FF9F1C"/>
+      <ellipse cx="308" cy="434" rx="46" ry="20" fill="#FF9F1C"/>
+    </g>
+
+    <text x="286" y="150" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" font-size="58" font-weight="600" fill="#F0F6FF">PS4 Linux Installer</text>
+    <text x="288" y="200" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" font-size="26" fill="#BBD5F2">one fake package for the whole install</text>
+
+    <rect x="288" y="228" width="120" height="6" rx="3" fill="#2D8CEB"/>
+    <text x="288" y="268" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif" font-size="20" fill="#8FB3D9">KERNEL  ·  INITRAMFS  ·  DISTRO  ·  PAYLOAD</text>
+  </g>
+</svg>
