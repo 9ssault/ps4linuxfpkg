@@ -579,11 +579,11 @@ static void render_home(void)
     snprintf(status, sizeof(status), "FTP %s:2121", g_ftp_host[0] ? g_ftp_host : "down");
     pill(430, y, status, g_have_ftp);
 
-    snprintf(status, sizeof(status), "BinLoader %s:9090", g_bin_host[0] ? g_bin_host : "down");
+    snprintf(status, sizeof(status), "PayLoader %s:9090", g_bin_host[0] ? g_bin_host : "down");
     pill(840, y, status, g_have_binloader);
 
     ui_text(120, FRAME_H - 156, 21, C_DIM,
-            "Needs GoldHEN v2.4b18.10+ with FTP and BinLoader enabled in its server settings.");
+            "Needs GoldHEN v2.4b18.10+ with FTP and PayLoader enabled in its server settings.");
     ui_text(120, FRAME_H - 126, 21, C_DIM,
             "Zero-typing mode is %s. Console address %s, installer ports 2121 and 9090.",
             g_opts.auto_install ? "on" : "off",
@@ -1083,19 +1083,30 @@ static int install_payload_files(void)
     return 1;
 }
 
+/* GoldHEN calls the payload listener PayLoader; the port is 9090 either way.
+ * Probing it with a bare connect and hanging up disturbs the listener, so the
+ * first real send is the test. */
 static int try_inject(void)
 {
-    int ok;
+    int ok = 0;
 
-    if (!g_have_binloader) {
-        notify("BinLoader 9090 is down - use GoldHEN > Utilities > PayLoader");
-        return 0;
+    for (int attempt = 1; attempt <= 3; attempt++) {
+        notify("Sending the boot payload to %s:9090 (try %d)", g_bin_host, attempt);
+        ok = net_send_file(g_bin_host, BINLOADER_PORT, PAYLOAD_LOCAL_ELF);
+
+        if (ok)
+            break;
+
+        sceKernelUsleep(1000 * 1000);
     }
 
-    notify("Sending the boot payload to %s:9090", g_bin_host);
-    ok = net_send_file(g_bin_host, BINLOADER_PORT, PAYLOAD_LOCAL_ELF);
+    g_have_binloader = ok ? 1 : -1;
 
-    notify(ok ? "Boot payload sent to %s:9090" : "Could not reach %s:9090", g_bin_host);
+    if (ok)
+        notify("Boot payload sent to %s:9090", g_bin_host);
+    else
+        notify("PayLoader is not answering on 9090 - launch %s from GoldHEN > PayLoader", PAYLOAD_ELF);
+
     return ok;
 }
 
@@ -1522,15 +1533,18 @@ static void resolve_servers(void)
     for (int i = 0; i < HOST_COUNT; i++) {
         if (!g_ftp_host[0] && ftp_probe_host(HOST_CANDIDATES[i]))
             snprintf(g_ftp_host, sizeof(g_ftp_host), "%s", HOST_CANDIDATES[i]);
-
-        if (!g_bin_host[0] && net_tcp_probe(HOST_CANDIDATES[i], BINLOADER_PORT))
-            snprintf(g_bin_host, sizeof(g_bin_host), "%s", HOST_CANDIDATES[i]);
     }
+
+    /* The payload goes to whichever console answered, so it needs no probe of
+     * its own; 0 means "not tried yet" and the pill stays amber until an
+     * install actually sends something. */
+    snprintf(g_bin_host, sizeof(g_bin_host), "%s",
+             g_ftp_host[0] ? g_ftp_host : HOST_CANDIDATES[0]);
 
     ftp_set_host(g_ftp_host[0] ? g_ftp_host : "127.0.0.1");
 
     g_have_ftp = g_ftp_host[0] != '\0';
-    g_have_binloader = g_bin_host[0] != '\0';
+    g_have_binloader = 0;
 }
 
 int main(void)
@@ -1552,11 +1566,10 @@ int main(void)
     resolve_servers();
     discover_targets();
 
-    notify("Found %d drive(s). Storage %s, FTP %s, BinLoader %s",
+    notify("Found %d drive(s). Storage %s, FTP %s, PayLoader will be tested when the payload is sent",
            g_target_count,
            (g_have_data_write && g_have_user_write) ? "direct" : "via FTP",
-           g_have_ftp ? g_ftp_host : "down",
-           g_have_binloader ? g_bin_host : "down");
+           g_have_ftp ? g_ftp_host : "down");
 
     for (;;) {
         if (g_dirty) {

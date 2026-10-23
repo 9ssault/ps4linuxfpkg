@@ -23,7 +23,7 @@ installs itself and lands on the desktop.
    - `distro.tar.xz`
    - a `ps4li.conf` job file for the unattended installer
    - the loader payload in `/data/payloads/`
-3. It sends the loader to GoldHEN's BinLoader.
+3. It sends the loader to GoldHEN's PayLoader.
 4. The kernel boots the patched initramfs, which formats and extracts without a
    single prompt, then continues straight into the new system.
 
@@ -42,14 +42,14 @@ manual installs.
 | PS4-blue UI | 1080p, controller and keyboard, Inter typeface |
 | Step notifications | Every download, write, payload send and error also lands in the PS4 notification panel |
 | Install log | `/data/ps4li.log` keeps the last 8 KB of steps, readable over GoldHEN's FTP after a failure |
-| Server discovery | Probes `192.168.18.16` and `127.0.0.1` for FTP 2121 / BinLoader 9090 |
+| Server discovery | Finds GoldHEN's FTP on 2121 and sends the payload to PayLoader 9090 |
 | FTP fallback | If the app sandbox blocks `/data`, writes go through GoldHEN's FTP |
 | Bundled payload | The loader ships inside the package, no extra download |
 
 ## Requirements
 
 - PS4 with **GoldHEN v2.4b18.10+** (v2.4b18.8 cannot boot Linux).
-- GoldHEN → Server settings: **FTP server** and **BinLoader server** enabled.
+- GoldHEN → Server settings: **FTP server** and **PayLoader** enabled.
 - Internet access on the console.
 - External install: a FAT32/exFAT USB drive for the boot files **and a second,
   empty drive** for Linux. The second drive is erased.
@@ -102,7 +102,7 @@ The app looks for GoldHEN on `192.168.18.16` first and falls back to loopback:
 | Service | Port | Purpose |
 | --- | --- | --- |
 | FTP | 2121 | file writes when the sandbox blocks them, directory creation |
-| BinLoader | 9090 | receives the Linux boot payload |
+| PayLoader | 9090 | receives the Linux boot payload |
 
 The home screen shows which host answered. If both show as down, the console
 cannot reach those ports and you have to launch the payload from
@@ -113,7 +113,7 @@ cannot reach those ports and you have to launch the payload from
 ```
 src/main.c        screens, options, downloads, job file, payload handoff
 src/ui.c          SDL2 + FreeType renderer (Inter regular/semibold), input
-src/net.c         libSceHttp downloads with manual redirects, BinLoader sender
+src/net.c         libSceHttp downloads with manual redirects, payload sender
 src/ftp.c         minimal GoldHEN FTP client (probe, MKD, STOR)
 src/storage.c     paths, free space, filesystem type, archive lookup
 src/catalog.h     kernel and distro catalog with the exact URLs
@@ -164,7 +164,7 @@ Checked against a live console (GoldHEN FTP on `192.168.18.16:2121`):
 - The package uploads to a USB drive at `usb0:/ps4-linux-installer.pkg` at
   roughly 2-3 MB/s and matches the release asset exactly.
 
-**Still needs the console, in person:** BinLoader on `9090` must be switched on
+**Still needs the console, in person:** PayLoader on `9090` must be switched on
 in GoldHEN's server settings, launch and UI behaviour, HTTPS redirects through
 `libSceHttp`, download throughput for the distro images, the sandboxed `/data`
 and `/user` probes, and the unattended installer actually partitioning a real

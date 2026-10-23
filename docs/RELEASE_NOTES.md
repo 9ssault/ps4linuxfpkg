@@ -1,4 +1,4 @@
-# PS4 Linux Installer v1.0.4
+# PS4 Linux Installer v1.0.5
 
 One fake package that performs the whole PS4 Linux setup from
 [dionkill.github.io/ps4-linux-tutorial](https://dionkill.github.io/ps4-linux-tutorial/).
@@ -13,15 +13,23 @@ One fake package that performs the whole PS4 Linux setup from
   internal filesystem (ext4/btrfs), internal image size (auto/16/32/64/128 GB)
   and performance boot arguments (`mitigations=off`).
 - **PS4-blue UI.** 1080p, controller and keyboard, Inter typeface, live
-  environment status for storage, FTP and BinLoader.
+  environment status for storage, FTP and PayLoader.
 - **Server discovery.** Probes `192.168.18.16` then `127.0.0.1` for GoldHEN's
-  FTP (2121) and BinLoader (9090).
+  FTP (2121) and PayLoader (9090).
 - **FTP fallback.** If the app sandbox blocks `/data`, files are uploaded
   through GoldHEN's FTP server instead.
 - **Bundled payload.** `ps4-linux-loader` v25.1 ships in the package.
 - **Step notifications.** Startup, every download and write, each sandbox
   fallback, the payload send and every failure also post to the PS4
   notification panel, so progress stays visible even if the app loses focus.
+
+## Fixed in v1.0.5
+
+- **PayLoader.** GoldHEN calls the payload listener *PayLoader*, not BinLoader,
+  so the app uses that name too. Its state is no longer probed at startup: a
+  bare connect-and-hang-up disturbs the listener, which is why it reported
+  "down" while the setting was on. The first real send is the test now, with
+  three attempts, and the pill turns red only after those fail.
 
 ## Fixed in v1.0.4
 
@@ -72,7 +80,7 @@ available as a USB import because it is only hosted on Mega/Mediafire.
 ## Requirements
 
 - GoldHEN v2.4b18.10 or newer (not v2.4b18.8).
-- FTP and BinLoader enabled in GoldHEN's server settings.
+- FTP and PayLoader enabled in GoldHEN's server settings.
 - External installs need a second, empty USB drive; it will be erased.
 
 ## Install
@@ -83,7 +91,7 @@ available as a USB import because it is only hosted on Mega/Mediafire.
 
 ## Known limitations
 
-- The console-side behaviour is untested in CI: sandbox writes, BinLoader
+- The console-side behaviour is untested in CI: sandbox writes, PayLoader
   reachability, HTTPS redirects and the unattended partitioning all need a
   real PS4.
 - PS4 system settings (resolution, RGB range) and enabling GoldHEN's servers
