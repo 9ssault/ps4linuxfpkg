@@ -220,10 +220,21 @@ install_internal() {
 		[ -n "${distro}" ] && break
 	done
 
+	# Where /data sits in the PS4 OS is not guaranteed to match the mount the
+	# initramfs builds, so fall back to looking for the archive itself.
 	if [ -z "${distro}" ]; then
-		fail "no distro archive on the internal drive (looked in /ps4hdd/linux and ${boot})"
+		say "no archive in the usual places, searching the internal drive"
+		distro="$(find /ps4hdd -maxdepth 4 \( -name '*.tar.xz' -o -name '*.tar.gz' -o -name '*.tar.zst' \) 2>/dev/null | head -n 1)"
+	fi
+
+	if [ -z "${distro}" ]; then
+		fail "no distro archive on the internal drive"
+		warn "looked in /ps4hdd/linux, /ps4hdd/linux/boot and ${boot}; top of the drive:"
+		ls -la /ps4hdd 2>/dev/null
 		return 1
 	fi
+
+	say "using ${distro}"
 
 	free_gb="$(df -Pk /ps4hdd | awk 'END { print int($4 / 1048576) }')"
 	if [ "${free_gb}" -lt 2 ]; then
