@@ -69,11 +69,44 @@ long long fs_size(const char *path)
 long long fs_free(const char *path)
 {
     struct statfs st;
+    long long blocks;
+    long long unit;
 
     if (!path || statfs(path, &st) != 0)
         return -1;
 
-    return (long long)st.f_bavail * (long long)st.f_bsize;
+    /* Orbis reports no available blocks on some mounts (FAT32 USB drives and
+     * the PFS data partition both do this) while f_bfree is correct, so a
+     * zero in bavail must not be read as "the disk is full". */
+    blocks = (long long)st.f_bavail;
+    if (blocks <= 0)
+        blocks = (long long)st.f_bfree;
+
+    unit = (long long)st.f_bsize;
+
+    if (blocks <= 0 || unit <= 0)
+        return -1;
+
+    return blocks * unit;
+}
+
+void fs_space_debug(const char *path, char *out, size_t out_len)
+{
+    struct statfs st;
+
+    if (!out || out_len == 0)
+        return;
+
+    snprintf(out, out_len, "statfs failed");
+
+    if (!path || statfs(path, &st) != 0)
+        return;
+
+    snprintf(out, out_len, "bsize=%llu blocks=%llu bfree=%llu bavail=%llu",
+             (unsigned long long)st.f_bsize,
+             (unsigned long long)st.f_blocks,
+             (unsigned long long)st.f_bfree,
+             (unsigned long long)st.f_bavail);
 }
 
 int fs_fstype(const char *path, char *out, size_t out_len)

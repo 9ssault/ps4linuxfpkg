@@ -8,6 +8,9 @@ int      fs_mkdir_p(const char *path);
 
 long long fs_size(const char *path);
 long long fs_free(const char *path);
+
+/* Fills out with the raw statfs counters, for the log. */
+void      fs_space_debug(const char *path, char *out, size_t out_len);
 int       fs_fstype(const char *path, char *out, size_t out_len);
 
 /* Finds the first *.{tar.xz,tar.gz,tar.zst} directly inside dir, skipping one

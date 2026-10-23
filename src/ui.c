@@ -7,6 +7,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define FRAME_W 1920
@@ -188,50 +189,101 @@ static FT_Face face_for(int bold)
     return face;
 }
 
-static int glyph_width(FT_Face face, unsigned char ch, int px)
+/* Rasterising a glyph costs a few hundred microseconds on a PS4 CPU and a
+ * full screen is a few hundred glyphs, so redrawing text every frame is what
+ * made the UI crawl. Keep the coverage maps in a small cache instead. */
+#define GLYPH_CACHE 1024
+
+typedef struct {
+    int            valid;
+    FT_Face        face;
+    int            px;
+    unsigned int   code;
+    int            advance;
+    int            left;
+    int            top;
+    unsigned int   rows;
+    unsigned int   width;
+    unsigned int   pitch;
+    unsigned char *buffer;
+} Glyph;
+
+static Glyph g_glyphs[GLYPH_CACHE];
+
+static Glyph *glyph_get(FT_Face face, unsigned char ch, int px)
 {
-    FT_UInt index;
+    unsigned int code = (unsigned int)ch;
+    unsigned int hash = code * 131u + (unsigned int)px * 7u + (face == g_semibold ? 1u : 0u);
+    Glyph *g = &g_glyphs[hash % GLYPH_CACHE];
+    FT_GlyphSlot slot;
+    size_t bytes;
+
+    if (g->valid && g->face == face && g->px == px && g->code == code)
+        return g;
 
     if (!face || FT_Set_Char_Size(face, 0, px * 64, 0, 0) != 0)
-        return px / 2;
+        return NULL;
 
-    index = FT_Get_Char_Index(face, ch);
-    if (FT_Load_Glyph(face, index, FT_LOAD_DEFAULT) != 0)
-        return px / 2;
+    if (FT_Load_Glyph(face, FT_Get_Char_Index(face, ch), FT_LOAD_DEFAULT) != 0)
+        return NULL;
 
-    return (int)(face->glyph->advance.x >> 6);
+    if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL) != 0)
+        return NULL;
+
+    slot = face->glyph;
+    bytes = (size_t)slot->bitmap.pitch * slot->bitmap.rows;
+
+    free(g->buffer);
+    g->buffer = NULL;
+
+    if (bytes > 0) {
+        g->buffer = (unsigned char *)malloc(bytes);
+        if (!g->buffer)
+            return NULL;
+        memcpy(g->buffer, slot->bitmap.buffer, bytes);
+    }
+
+    g->valid = 1;
+    g->face = face;
+    g->px = px;
+    g->code = code;
+    g->advance = (int)(slot->advance.x >> 6);
+    g->left = (int)slot->bitmap_left;
+    g->top = (int)slot->bitmap_top;
+    g->rows = slot->bitmap.rows;
+    g->width = slot->bitmap.width;
+    g->pitch = (unsigned int)slot->bitmap.pitch;
+
+    return g;
+}
+
+static int glyph_width(FT_Face face, unsigned char ch, int px)
+{
+    Glyph *g = glyph_get(face, ch, px);
+
+    return g ? g->advance : px / 2;
 }
 
 static void draw_one_char(FT_Face face, int *pen_x, int baseline, int px,
                           SDL_Color color, unsigned char ch)
 {
-    FT_UInt index;
-    FT_GlyphSlot slot;
+    Glyph *g = glyph_get(face, ch, px);
     int gx, gy;
 
-    if (!face || FT_Set_Char_Size(face, 0, px * 64, 0, 0) != 0)
+    if (!g)
         return;
 
-    index = FT_Get_Char_Index(face, ch);
-    if (FT_Load_Glyph(face, index, FT_LOAD_DEFAULT) != 0)
-        return;
+    gx = *pen_x + g->left;
+    gy = baseline - g->top;
 
-    if (FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL) != 0)
-        return;
-
-    slot = face->glyph;
-
-    gx = *pen_x + (int)(slot->bitmap_left);
-    gy = baseline - (int)(slot->bitmap_top);
-
-    for (unsigned int row = 0; row < slot->bitmap.rows; row++) {
-        for (unsigned int col = 0; col < slot->bitmap.width; col++) {
-            unsigned char cov = slot->bitmap.buffer[row * slot->bitmap.pitch + col];
+    for (unsigned int row = 0; row < g->rows; row++) {
+        for (unsigned int col = 0; col < g->width; col++) {
+            unsigned char cov = g->buffer[row * g->pitch + col];
             blend_pixel(gx + (int)col, gy + (int)row, color, cov);
         }
     }
 
-    *pen_x += (int)(slot->advance.x >> 6);
+    *pen_x += g->advance;
 }
 
 static void draw_text(FT_Face face, int x, int y, int px, SDL_Color color, const char *text)

@@ -110,6 +110,10 @@ static char g_error[320];
 static char g_done_text[1200];
 
 static unsigned long long g_work_done;
+
+/* Redraw only when something changed: a full 1080p software frame with
+ * FreeType text is far too expensive to paint sixty times a second. */
+static int g_dirty = 1;
 static unsigned long long g_work_total;
 static char g_work_file[160];
 static char g_work_note[160];
@@ -132,6 +136,15 @@ static void fmt_size(char *out, size_t out_len, unsigned long long bytes)
         snprintf(out, out_len, "%llu KB", bytes / 1024ULL);
 }
 
+/* Some mounts report no free space at all; say so instead of claiming 0 KB. */
+static void free_text(char *out, size_t out_len, long long bytes)
+{
+    if (bytes > 0)
+        fmt_size(out, out_len, (unsigned long long)bytes);
+    else
+        snprintf(out, out_len, "unknown");
+}
+
 static void log_line(const char *fmt, ...)
 {
     va_list args;
@@ -144,9 +157,76 @@ static void log_line(const char *fmt, ...)
 /* --------------------------------------------------------- notifications --- */
 
 /* A system notification survives the app losing focus, so every step lands on
- * screen even if the player has switched to another tile. 0x10000000 is the
- * system user id that GoldHEN's BinLoader also reports through. */
-#define NOTIFY_USER 0x10000000
+ * screen even if the player has switched to another tile. The first argument
+ * is the notification type, not a user id: 222 is what ps4debug and the
+ * ps4-linux loader itself pass, and any other value renders an empty toast. */
+#define NOTIFY_TYPE 222
+
+/* Every notification is also kept in a small log on the console, so a failed
+ * install can still be read afterwards over GoldHEN's FTP. */
+#define LOG_PATH "/data/ps4li.log"
+#define LOG_MAX  8192
+
+static char   g_log[LOG_MAX + 1];
+static size_t g_log_len;
+
+/* One FTP session is enough; skip a log flush while a file is being sent. */
+static int g_ftp_busy;
+
+static void log_flush(void)
+{
+    FILE *fp;
+    FtpSink *sink;
+
+    fp = fopen(LOG_PATH, "wb");
+    if (fp) {
+        fwrite(g_log, 1, g_log_len, fp);
+        fclose(fp);
+        return;
+    }
+
+    if (g_ftp_busy)
+        return;
+
+    /* The sandbox refused /data; GoldHEN's FTP server runs outside it. */
+    sink = ftp_begin(LOG_PATH);
+    if (!sink)
+        return;
+
+    ftp_write(sink, g_log, g_log_len);
+    ftp_end(sink, 1);
+}
+
+static void log_persist(const char *fmt, ...)
+{
+    char line[320];
+    char stamped[360];
+    va_list args;
+    size_t need;
+
+    va_start(args, fmt);
+    vsnprintf(line, sizeof(line), fmt, args);
+    va_end(args);
+
+    snprintf(stamped, sizeof(stamped), "%7.2fs %s\n", SDL_GetTicks() / 1000.0, line);
+    need = strlen(stamped);
+
+    if (g_log_len + need > LOG_MAX) {
+        size_t drop = g_log_len / 2;
+
+        memmove(g_log, g_log + drop, g_log_len - drop);
+        g_log_len -= drop;
+    }
+
+    if (need > LOG_MAX)
+        return;
+
+    memcpy(g_log + g_log_len, stamped, need);
+    g_log_len += need;
+    g_log[g_log_len] = '\0';
+
+    log_flush();
+}
 
 static void notify(const char *fmt, ...)
 {
@@ -158,6 +238,8 @@ static void notify(const char *fmt, ...)
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
 
+    log_persist("%s", text);
+
     /* System notifications are one line; anything after a break is lost. */
     for (p = text; *p; p++) {
         if (*p == '\n') {
@@ -167,7 +249,7 @@ static void notify(const char *fmt, ...)
     }
 
     if (text[0])
-        sceSysUtilSendSystemNotificationWithText(NOTIFY_USER, text);
+        sceSysUtilSendSystemNotificationWithText(NOTIFY_TYPE, text);
 }
 
 static void fail_screen(void)
@@ -207,7 +289,12 @@ static int sink_open(Sink *sink, const char *path)
     /* Sandbox refused the write; GoldHEN's FTP server runs outside it. */
     sink->ftp = ftp_begin(path);
 
-    notify(sink->ftp ? "Sandbox refused %s - using GoldHEN FTP" : "Cannot write %s", path);
+    if (sink->ftp) {
+        g_ftp_busy = 1;
+        notify("The PS4 sandbox blocked %s, so it goes through GoldHEN's FTP", path);
+    } else {
+        notify("Cannot write %s: the sandbox refused it and FTP is not answering", path);
+    }
 
     return sink->ftp != NULL;
 }
@@ -240,6 +327,7 @@ static int sink_close(Sink *sink, int ok)
     if (sink->ftp) {
         ftp_end(sink->ftp, ok);
         sink->ftp = NULL;
+        g_ftp_busy = 0;
     }
 
     return ok;
@@ -275,11 +363,11 @@ static int put_file(const char *src, const char *dst, const char *label)
     }
 
     if (label) {
-        snprintf(g_work_file, sizeof(g_work_file), "%s", label);
+        snprintf(g_work_file, sizeof(g_work_file), "Writing %s", label);
         g_work_done = 0;
         g_work_total = (unsigned long long)fs_size(src);
         render_work_now();
-        notify("%s", label);
+        notify("Writing %s", label);
     }
 
     buffer = (char *)malloc(256 * 1024);
@@ -306,7 +394,7 @@ static int put_file(const char *src, const char *dst, const char *label)
     ok = sink_close(&sink, ok);
 
     if (label)
-        notify(ok ? "Done: %s" : "Failed: %s", label);
+        notify(ok ? "Wrote %s" : "Could not write %s", label);
 
     return ok;
 }
@@ -599,7 +687,7 @@ static void render_confirm(void)
 
     need = d->size ? d->size + (64ULL * 1024ULL * 1024ULL) : 0;
     free_bytes = target_free(t);
-    fmt_size(free_s, sizeof(free_s), free_bytes > 0 ? (unsigned long long)free_bytes : 0);
+    free_text(free_s, sizeof(free_s), free_bytes);
 
     ui_text_b(120, y, 30, C_DIM, "Space");
     if (need == 0) {
@@ -757,6 +845,7 @@ static void render_work_now(void)
 {
     render();
     g_work_last_render = SDL_GetTicks();
+    g_dirty = 0;
 }
 
 /* Word-wrapped text so long status and error messages stay on screen. */
@@ -818,6 +907,8 @@ static int progress_cb(void *ctx, unsigned long long done, unsigned long long to
     if (total)
         g_work_total = total;
 
+    g_dirty = 1;
+
     if (SDL_GetTicks() - g_work_last_render > 120)
         render_work_now();
 
@@ -832,11 +923,11 @@ static int download_to(const char *url, const char *path, const char *label)
     char err[192];
     int ok;
 
-    snprintf(g_work_file, sizeof(g_work_file), "%s", label);
+    snprintf(g_work_file, sizeof(g_work_file), "Downloading %s", label);
     g_work_done = 0;
     g_work_total = 0;
     render_work_now();
-    notify("%s", label);
+    notify("Downloading %s", label);
 
     if (!sink_open(&sink, path)) {
         snprintf(g_error, sizeof(g_error),
@@ -849,11 +940,11 @@ static int download_to(const char *url, const char *path, const char *label)
 
     if (!ok) {
         snprintf(g_error, sizeof(g_error), "%s: %s", label, err);
-        notify("Failed: %s", label);
+        notify("Download failed: %s", label);
         return 0;
     }
 
-    notify("Done: %s", label);
+    notify("Downloaded %s", label);
     return 1;
 }
 
@@ -925,7 +1016,7 @@ static int import_manual_distro(const char *usb, const char *dst)
 
     log_line("copying %s", found);
 
-    if (!put_file(found, dst, "Importing the distro archive")) {
+    if (!put_file(found, dst, "the distro archive from the USB drive")) {
         snprintf(g_error, sizeof(g_error), "Could not move the distro archive to %s.", dst);
         return 0;
     }
@@ -944,7 +1035,7 @@ static int install_payload_files(void)
     fs_join(elf, sizeof(elf), PAYLOAD_DIR, PAYLOAD_ELF);
     fs_join(bin, sizeof(bin), PAYLOAD_DIR, PAYLOAD_BIN);
 
-    if (!put_file(PAYLOAD_LOCAL_ELF, elf, "Placing the boot payload"))
+    if (!put_file(PAYLOAD_LOCAL_ELF, elf, "the boot payload"))
         log_line("warning: could not copy the payload to %s", elf);
 
     if (!put_file(PAYLOAD_LOCAL_BIN, bin, NULL))
@@ -989,18 +1080,19 @@ static int run_install(void)
         mode = "ext";
     }
 
-    notify("Installing Linux to %s", t->label);
+    notify("Installing %s to %s with the %s kernel",
+           DISTROS[g_distro_sel].name, t->label, KERNELS[g_kernel_sel].name);
 
     if (!download_to(KERNELS[g_kernel_sel].url,
                      (fs_join(path, sizeof(path), bootdir, "bzImage"), path),
-                     "Downloading the kernel (bzImage)"))
+                     "the kernel (bzImage)"))
         return 0;
 
     /* The bundled initramfs is upstream plus the unattended installer; without
      * a job file it behaves exactly like the stock one. */
     if (!put_file(INITRAMFS_LOCAL,
                   (fs_join(path, sizeof(path), bootdir, "initramfs.cpio.gz"), path),
-                  "Installing the rescue initramfs")) {
+                  "the rescue initramfs")) {
         snprintf(g_error, sizeof(g_error), "Could not write initramfs.cpio.gz to %s.", bootdir);
         return 0;
     }
@@ -1023,7 +1115,7 @@ static int run_install(void)
         fs_join(dst, sizeof(dst), bootdir, "distro.tar.xz");
 
     if (d->url) {
-        if (!download_to(d->url, dst, "Downloading the distro (this is the big one)"))
+        if (!download_to(d->url, dst, "the distro image (this is the big one)"))
             return 0;
     } else if (!import_manual_distro(find_source_usb(), dst)) {
         return 0;
@@ -1165,9 +1257,18 @@ static void discover_targets(void)
 
         fs_fstype(path, fstype, sizeof(fstype));
         free_bytes = fs_free(path);
-        fmt_size(free_s, sizeof(free_s), free_bytes > 0 ? (unsigned long long)free_bytes : 0);
+        free_text(free_s, sizeof(free_s), free_bytes);
 
         t->writable = fs_test_write(path);
+
+        {
+            char space[128];
+
+            fs_space_debug(path, space, sizeof(space));
+            notify("%s is %s with %s free", t->label,
+                   fstype[0] ? fstype : "an unknown filesystem", free_s);
+            log_persist("  raw statfs %s: %s", path, space);
+        }
 
         snprintf(detail, sizeof(detail), "%s  -  %s free%s",
                  fstype[0] ? fstype : "unknown filesystem", free_s,
@@ -1188,9 +1289,17 @@ static void discover_targets(void)
 
         t->internal = 1;
         free_bytes = target_free(t);
-        fmt_size(free_s, sizeof(free_s), free_bytes > 0 ? (unsigned long long)free_bytes : 0);
+        free_text(free_s, sizeof(free_s), free_bytes);
         snprintf(t->detail, sizeof(t->detail),
                  "Aeolia/Belize only, slow on the stock HDD  -  %s free", free_s);
+
+        {
+            char space[128];
+
+            fs_space_debug(INTERNAL_SYSDIR, space, sizeof(space));
+            notify("Internal HDD has %s free", free_s);
+            log_persist("  raw statfs %s: %s", INTERNAL_SYSDIR, space);
+        }
         t->writable = g_have_data_write && g_have_user_write;
 
         g_target_count++;
@@ -1405,20 +1514,26 @@ int main(void)
     resolve_servers();
     discover_targets();
 
-    notify("PS4 Linux Installer ready - %d drive(s), storage %s, FTP %s, BinLoader %s",
+    notify("Found %d drive(s). Storage %s, FTP %s, BinLoader %s",
            g_target_count,
            (g_have_data_write && g_have_user_write) ? "direct" : "via FTP",
            g_have_ftp ? g_ftp_host : "down",
            g_have_binloader ? g_bin_host : "down");
 
     for (;;) {
-        render();
+        if (g_dirty) {
+            render();
+            g_dirty = 0;
+        }
 
         {
             UiInput in = ui_poll();
 
             if (in.quit)
                 break;
+
+            if (in.up || in.down || in.left || in.right || in.confirm || in.back)
+                g_dirty = 1;
 
             handle_input(in);
         }
