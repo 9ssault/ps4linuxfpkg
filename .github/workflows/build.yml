@@ -41,6 +41,15 @@ jobs:
           ( cd dist && sha256sum ps4-linux-installer.fpkg > SHA256SUMS.txt )
           cat dist/SHA256SUMS.txt
 
+      # The bundled initramfs on its own, for testing a boot without
+      # installing a distro.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ps4-linux-initramfs
+          path: assets/initramfs.cpio.gz
+          if-no-files-found: error
+          retention-days: 30
+
       - uses: actions/upload-artifact@v4
         with:
           name: ps4-linux-installer
