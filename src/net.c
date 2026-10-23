@@ -21,7 +21,12 @@
 #define HTTP_USER_AGENT "Mozilla/5.0 (PLAYSTATION 4; 1.00)"
 #define NET_POOLSIZE    (4 * 1024)
 #define MAX_REDIRECTS   6
-#define URL_MAX         1024
+/* GitHub's signed release-asset URLs run to ~2 KB, so a 1 KB buffer truncated
+ * them into an invalid host. */
+#define URL_MAX         4096
+/* libSceHttp rejects GitHub's release redirects (5 KB of headers on their own)
+ * with TOO_LARGE_RESPONSE_HEADER unless the limit is raised. */
+#define HEADER_MAX      (64 * 1024)
 
 static int g_net_id;
 static int g_http_id;
@@ -191,6 +196,7 @@ int net_download(const char *url,
         }
 
         sceHttpsSetSslCallback(tpl, ssl_accepted, NULL);
+        sceHttpSetResponseHeaderMaxSize(tpl, HEADER_MAX);
 
         conn = sceHttpCreateConnectionWithURL(tpl, current, 0);
         if (conn < 0) {

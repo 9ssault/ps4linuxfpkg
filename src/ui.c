@@ -80,14 +80,22 @@ int ui_init(void)
         return 0;
     }
 
-    /* Draw into our own ARGB surface so the pixel format never depends on what
-     * the console handed us. */
-    g_canvas = SDL_CreateRGBSurface(0, FRAME_W, FRAME_H, 32,
-                                    0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    /* Draw into a surface that has the window's exact pixel format: a format
+     * mismatch turns the present step into a per-pixel conversion of two
+     * million pixels every frame, which is what pinned the UI to a few fps. */
+    g_canvas = SDL_CreateRGBSurfaceWithFormat(0, FRAME_W, FRAME_H, 32,
+                                              g_win_surface->format->format);
+    if (!g_canvas)
+        g_canvas = SDL_CreateRGBSurface(0, FRAME_W, FRAME_H, 32,
+                                        0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     if (!g_canvas) {
         printf("SDL_CreateRGBSurface failed: %s\n", SDL_GetError());
         return 0;
     }
+
+    printf("canvas format %s, window format %s\n",
+           SDL_GetPixelFormatName(g_canvas->format->format),
+           SDL_GetPixelFormatName(g_win_surface->format->format));
 
     if (SDL_NumJoysticks() > 0)
         g_joy = SDL_JoystickOpen(0);
@@ -151,12 +159,20 @@ void ui_rect(int x, int y, int w, int h, SDL_Color color)
     SDL_FillRect(g_canvas, &r, SDL_MapRGBA(g_canvas->format, color.r, color.g, color.b, color.a));
 }
 
+/* x / 255 for 0 <= x < 65536; the div is a hundred cycles on this CPU. */
+static int div255(int x)
+{
+    int t = x + 1;
+
+    return (t + (t >> 8)) >> 8;
+}
+
 static void blend_pixel(int x, int y, SDL_Color color, unsigned char coverage)
 {
     uint32_t *row;
     uint32_t dst;
     int alpha;
-    int dr, dg, db;
+    unsigned char dr, dg, db;
 
     if (x < 0 || y < 0 || x >= g_canvas->w || y >= g_canvas->h || coverage == 0)
         return;
@@ -164,19 +180,22 @@ static void blend_pixel(int x, int y, SDL_Color color, unsigned char coverage)
     row = (uint32_t *)((uint8_t *)g_canvas->pixels + (size_t)y * g_canvas->pitch);
     dst = row[x];
 
-    alpha = (coverage * color.a) / 255;
+    alpha = div255(coverage * color.a);
     if (alpha == 0)
         return;
 
-    dr = (dst >> 16) & 0xFF;
-    dg = (dst >> 8) & 0xFF;
-    db = dst & 0xFF;
+    if (alpha == 255) {
+        row[x] = SDL_MapRGBA(g_canvas->format, color.r, color.g, color.b, 255);
+        return;
+    }
 
-    dr = (color.r * alpha + dr * (255 - alpha)) / 255;
-    dg = (color.g * alpha + dg * (255 - alpha)) / 255;
-    db = (color.b * alpha + db * (255 - alpha)) / 255;
+    SDL_GetRGB(dst, g_canvas->format, &dr, &dg, &db);
 
-    row[x] = 0xFF000000u | ((uint32_t)dr << 16) | ((uint32_t)dg << 8) | (uint32_t)db;
+    dr = (unsigned char)div255(color.r * alpha + dr * (255 - alpha));
+    dg = (unsigned char)div255(color.g * alpha + dg * (255 - alpha));
+    db = (unsigned char)div255(color.b * alpha + db * (255 - alpha));
+
+    row[x] = SDL_MapRGBA(g_canvas->format, dr, dg, db, 255);
 }
 
 static FT_Face face_for(int bold)

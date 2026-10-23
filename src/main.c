@@ -826,6 +826,8 @@ static void render_error(void)
 
 static void render(void)
 {
+    Uint32 started = SDL_GetTicks();
+
     switch (g_screen) {
     case SCR_HOME:    render_home();    break;
     case SCR_TARGET:  render_target();  break;
@@ -839,6 +841,23 @@ static void render(void)
     }
 
     ui_present();
+
+    /* Frame cost goes to the log: painting 1080p in software is the one thing
+     * that can still make the UI feel stuck on this hardware. */
+    {
+        static unsigned int frames;
+        static Uint32 worst;
+        Uint32 spent = SDL_GetTicks() - started;
+
+        frames++;
+        if (spent > worst)
+            worst = spent;
+
+        if (frames % 30 == 0) {
+            log_persist("render: %u frames, last %u ms, worst %u ms", frames, spent, worst);
+            worst = 0;
+        }
+    }
 }
 
 static void render_work_now(void)

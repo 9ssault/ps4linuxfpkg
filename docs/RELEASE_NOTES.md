@@ -1,4 +1,4 @@
-# PS4 Linux Installer v1.0.2
+# PS4 Linux Installer v1.0.3
 
 One fake package that performs the whole PS4 Linux setup from
 [dionkill.github.io/ps4-linux-tutorial](https://dionkill.github.io/ps4-linux-tutorial/).
@@ -22,6 +22,18 @@ One fake package that performs the whole PS4 Linux setup from
 - **Step notifications.** Startup, every download and write, each sandbox
   fallback, the payload send and every failure also post to the PS4
   notification panel, so progress stays visible even if the app loses focus.
+
+## Fixed in v1.0.3
+
+- **Distro download.** GitHub answers a release asset with a ~5 KB redirect
+  header and a ~2 KB signed URL. libSceHttp rejected the first with
+  `TOO_LARGE_RESPONSE_HEADER` and the app truncated the second, so every
+  distro failed right after the kernel. The header limit is raised and URLs
+  can now be 4 KB long.
+- **Frame cost.** The canvas was forced to a different pixel format than the
+  window, so every present converted two million pixels on the CPU. The canvas
+  is now created in the window's own format, alpha blending avoids division,
+  and the frame time is written to the log.
 
 ## Fixed in v1.0.2
 
