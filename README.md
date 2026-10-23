@@ -3,7 +3,9 @@
 # PS4 Linux Installer
 
 **DISCLAIMER**
-This isnt fully done yet, you will load on rescue shell after reboot, dont run unless you know what you're doing.
+
+
+- This isnt fully done yet, you will load on rescue shell after reboot, dont run unless you know what you're doing.
 
 A single fake package (`.pkg`) that sets up Linux on a jailbroken PS4 with the
 same steps as [DionKill's tutorial](https://dionkill.github.io/ps4-linux-tutorial/),
