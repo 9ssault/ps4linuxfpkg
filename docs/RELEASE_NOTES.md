@@ -1,4 +1,4 @@
-# PS4 Linux Installer v1.0.1
+# PS4 Linux Installer v1.0.2
 
 One fake package that performs the whole PS4 Linux setup from
 [dionkill.github.io/ps4-linux-tutorial](https://dionkill.github.io/ps4-linux-tutorial/).
@@ -22,6 +22,21 @@ One fake package that performs the whole PS4 Linux setup from
 - **Step notifications.** Startup, every download and write, each sandbox
   fallback, the payload send and every failure also post to the PS4
   notification panel, so progress stays visible even if the app loses focus.
+
+## Fixed in v1.0.2
+
+- **Free space.** Orbis reports no available blocks on FAT32 USB drives and on
+  the PFS data partition, so a drive with gigabytes left was shown as `0 KB
+  free` and the size check was skipped. The reading now falls back to the
+  free-block count, and says `unknown` instead of `0 KB`.
+- **Notifications.** They were posted with a user id where the console wants
+  the notification type, so they appeared empty. They now read as plain steps
+  ("Downloading the kernel (bzImage)", "Writing the rescue initramfs").
+- **Speed.** The renderer re-rasterised every glyph on every frame at 1080p,
+  which is where the ~2 fps came from. Glyphs are cached and the screen is only
+  redrawn when something changes.
+- **Diagnostics.** Every step and the raw `statfs` counters go to
+  `/data/ps4li.log`, readable over GoldHEN's FTP after a failed install.
 
 ## Distros
 
